@@ -13,6 +13,7 @@ contract Sender is OwnerIsCreator {
     error NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees); 
     error InvalidPriceFeedData();
     error TokenTransferFailed();
+    error DestinationChainNotAllowed(uint64 destinationChainSelector);
 
     event MessageSent(
         bytes32 indexed messageId, // The unique ID of the CCIP message.
@@ -28,6 +29,9 @@ contract Sender is OwnerIsCreator {
     IRouterClient private s_router;
     LinkTokenInterface private s_linkToken;
     
+    // Allowlist for destination chains
+    mapping(uint64 => bool) public allowlistedDestinationChains;
+    
     mapping(address => mapping(address => uint256)) public userDeposits;
     mapping(address => AggregatorV3Interface) public priceFeeds;
 
@@ -35,6 +39,19 @@ contract Sender is OwnerIsCreator {
     constructor(address _router, address _link) {
         s_router = IRouterClient(_router);
         s_linkToken = LinkTokenInterface(_link);
+    }
+    
+    // Security function for destination chains
+    function allowlistDestinationChain(uint64 _destinationChainSelector, bool allowed) external onlyOwner {
+        allowlistedDestinationChains[_destinationChainSelector] = allowed;
+    }
+
+    // Modifier to check if destination is allowed
+    modifier onlyAllowlistedDestination(uint64 _destinationChainSelector) {
+        if (!allowlistedDestinationChains[_destinationChainSelector]) {
+            revert DestinationChainNotAllowed(_destinationChainSelector);
+        }
+        _;
     }
     
     function addPriceFeed(address token, address priceFeed) external onlyOwner {
@@ -62,20 +79,37 @@ contract Sender is OwnerIsCreator {
         uint64 destinationChainSelector,
         address receiver,
         uint256 time
-    ) external returns (bytes32 messageId) {
+    ) external onlyAllowlistedDestination(destinationChainSelector) returns (bytes32 messageId) {
 
         // Transfer tokens from user to contract
-        IERC20 token = IERC20(depositToken);
-        bool success = token.transferFrom(msg.sender, address(this), amount);
-        if (!success) {
+        if (!IERC20(depositToken).transferFrom(msg.sender, address(this), amount)) {
             revert TokenTransferFailed();
         }
         
-        // Convert amount to USD value
-        uint256 usdValue = getTokenPriceInUSD(depositToken, amount);
-        
         // Record the deposit
         userDeposits[msg.sender][depositToken] += amount;
+        
+        // Send CCIP message and return messageId
+        return _sendCCIPMessage(
+            depositToken,
+            amount,
+            borrowToken,
+            destinationChainSelector,
+            receiver,
+            time
+        );
+    }
+
+    function _sendCCIPMessage(
+        address depositToken,
+        uint256 amount,
+        address borrowToken,
+        uint64 destinationChainSelector,
+        address receiver,
+        uint256 time
+    ) internal returns (bytes32 messageId) {
+        // Convert amount to USD value
+        uint256 usdValue = getTokenPriceInUSD(depositToken, amount);
         
         // Create CCIP message with deposit information
         Client.EVM2AnyMessage memory evm2AnyMessage = Client.EVM2AnyMessage({
