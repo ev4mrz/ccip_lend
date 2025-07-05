@@ -26,7 +26,6 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
     
     // Allowlist mappings for security
     mapping(uint64 => bool) public allowlistedSourceChains;
-    mapping(address => bool) public allowlistedSenders;
     
     // Storage for the last received message details
     struct MessageDetails {
@@ -51,15 +50,10 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
         allowlistedSourceChains[_sourceChainSelector] = allowed;
     }
 
-    function allowlistSender(address _sender, bool allowed) external onlyOwner {
-        allowlistedSenders[_sender] = allowed;
-    }
-
     // Modifier to check if source chain and sender are allowed
     modifier onlyAllowlisted(uint64 _sourceChainSelector, address _sender) {
         require(allowlistedSourceChains[_sourceChainSelector], "Source chain not allowed");
-        require(allowlistedSenders[_sender], "Sender not allowed");
-        _;
+
     }
     
     function getTokenAmountFromUSD(address token, uint256 usdValue) public view returns (uint256) {
@@ -72,7 +66,6 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
             revert InvalidPriceFeedData();
         }
 
-        // Assuming token has 18 decimals, adjust if needed
         uint256 tokenAmount = (usdValue * 1e18) / uint256(price);
         return tokenAmount;
     }
@@ -137,7 +130,7 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
     function calculateRefundAmount(uint256 borrowAmount, uint256 timeInSeconds) public pure returns (uint256) {
         // Calculate interest: borrowAmount + (borrowAmount * time * 0.2% per day)
         // Assuming timeInSeconds is the loan duration
-        uint256 dailyRate = 2; // 0.2% = 2/1000
+        uint256 dailyRate = 0.1; // 0.01% 
         uint256 daysElapsed = timeInSeconds / 86400; // seconds in a day
         uint256 interest = (borrowAmount * daysElapsed * dailyRate) / 1000;
         return borrowAmount + interest;

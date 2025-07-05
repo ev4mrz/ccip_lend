@@ -8,6 +8,10 @@ import {LinkTokenInterface} from "@chainlink/contracts/v0.8/shared/interfaces/Li
 import {AggregatorV3Interface} from "@chainlink/contracts/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface IPriceFeed {
+    function getPrice() external view returns (uint256);
+}
+
 contract Sender is OwnerIsCreator {
 
     error NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees); 
@@ -18,11 +22,11 @@ contract Sender is OwnerIsCreator {
     event MessageSent(
         bytes32 indexed messageId, // The unique ID of the CCIP message.
         uint64 indexed destinationChainSelector, // The chain selector of the destination chain.
-        uint256 amount, // The amount being sent.
-        address token, // The token address being sent.
+        uint256 amount, // The amount of deposit token.
+        address token, // The token address to lend.
         address feeToken, // the token address used to pay CCIP fees.
         uint256 fees, // The fees paid for sending the CCIP message.
-        uint256 times // The timestamp of the deposit.
+        uint256 times // The timestamp of the lend.
     );
     
 
@@ -36,6 +40,13 @@ contract Sender is OwnerIsCreator {
     mapping(address => AggregatorV3Interface) public priceFeeds;
 
 
+    modifier onlyAllowlistedDestination(uint64 _destinationChainSelector) {
+        if (!allowlistedDestinationChains[_destinationChainSelector]) {
+            revert DestinationChainNotAllowed(_destinationChainSelector);
+        }
+        _;
+    }
+
     constructor(address _router, address _link) {
         s_router = IRouterClient(_router);
         s_linkToken = LinkTokenInterface(_link);
@@ -45,39 +56,19 @@ contract Sender is OwnerIsCreator {
     function allowlistDestinationChain(uint64 _destinationChainSelector, bool allowed) external onlyOwner {
         allowlistedDestinationChains[_destinationChainSelector] = allowed;
     }
-
-    // Modifier to check if destination is allowed
-    modifier onlyAllowlistedDestination(uint64 _destinationChainSelector) {
-        if (!allowlistedDestinationChains[_destinationChainSelector]) {
-            revert DestinationChainNotAllowed(_destinationChainSelector);
-        }
-        _;
-    }
-    
-    function addPriceFeed(address token, address priceFeed) external onlyOwner {
-        priceFeeds[token] = AggregatorV3Interface(priceFeed);
-    }
     
     function getTokenPriceInUSD(address token, uint256 amount) public view returns (uint256) {
-        AggregatorV3Interface priceFeed = priceFeeds[token];
-        require(address(priceFeed) != address(0), "Price feed not set for this token");
         
-        (, int256 price, , , ) = priceFeed.latestRoundData();
-        if (price <= 0) {
-            revert InvalidPriceFeedData();
-        }
-        
-        uint256 usdValue = (amount * uint256(price)) / 1e18;
+        uint256 usdValue = (amount * IPriceFeed(token).getPrice()) / 1e18;
         return usdValue;
     }
 
-    
+
     function deposit(
         address depositToken,
         uint256 amount,
         address borrowToken,
         uint64 destinationChainSelector,
-        address receiver,
         uint256 time
     ) external onlyAllowlistedDestination(destinationChainSelector) returns (bytes32 messageId) {
 
@@ -95,7 +86,6 @@ contract Sender is OwnerIsCreator {
             amount,
             borrowToken,
             destinationChainSelector,
-            receiver,
             time
         );
     }
@@ -105,7 +95,6 @@ contract Sender is OwnerIsCreator {
         uint256 amount,
         address borrowToken,
         uint64 destinationChainSelector,
-        address receiver,
         uint256 time
     ) internal returns (bytes32 messageId) {
         // Convert amount to USD value
@@ -113,7 +102,6 @@ contract Sender is OwnerIsCreator {
         
         // Create CCIP message with deposit information
         Client.EVM2AnyMessage memory evm2AnyMessage = Client.EVM2AnyMessage({
-            receiver: abi.encode(receiver),
             data: abi.encode(msg.sender, depositToken, usdValue, borrowToken, time),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
