@@ -53,7 +53,7 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
     // Modifier to check if source chain and sender are allowed
     modifier onlyAllowlisted(uint64 _sourceChainSelector, address _sender) {
         require(allowlistedSourceChains[_sourceChainSelector], "Source chain not allowed");
-
+        _;
     }
     
     function getTokenAmountFromUSD(address token, uint256 usdValue) public view returns (uint256) {
@@ -128,11 +128,11 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
     }
 
     function calculateRefundAmount(uint256 borrowAmount, uint256 timeInSeconds) public pure returns (uint256) {
-        // Calculate interest: borrowAmount + (borrowAmount * time * 0.2% per day)
+        // Calculate interest: borrowAmount + (borrowAmount * time * 0.01% per day)
         // Assuming timeInSeconds is the loan duration
-        uint256 dailyRate = 0.1; // 0.01% 
+        uint256 dailyRate = 1; // 0.01% = 1/10000
         uint256 daysElapsed = timeInSeconds / 86400; // seconds in a day
-        uint256 interest = (borrowAmount * daysElapsed * dailyRate) / 1000;
+        uint256 interest = (borrowAmount * daysElapsed * dailyRate) / 10000;
         return borrowAmount + interest;
     }
     

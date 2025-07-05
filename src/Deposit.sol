@@ -69,6 +69,7 @@ contract Sender is OwnerIsCreator {
         uint256 amount,
         address borrowToken,
         uint64 destinationChainSelector,
+        address receiver,
         uint256 time
     ) external onlyAllowlistedDestination(destinationChainSelector) returns (bytes32 messageId) {
 
@@ -86,6 +87,7 @@ contract Sender is OwnerIsCreator {
             amount,
             borrowToken,
             destinationChainSelector,
+            receiver,
             time
         );
     }
@@ -95,6 +97,7 @@ contract Sender is OwnerIsCreator {
         uint256 amount,
         address borrowToken,
         uint64 destinationChainSelector,
+        address receiver,
         uint256 time
     ) internal returns (bytes32 messageId) {
         // Convert amount to USD value
@@ -102,6 +105,7 @@ contract Sender is OwnerIsCreator {
         
         // Create CCIP message with deposit information
         Client.EVM2AnyMessage memory evm2AnyMessage = Client.EVM2AnyMessage({
+            receiver: abi.encode(receiver), // Receiver address (Protocol contract)
             data: abi.encode(msg.sender, depositToken, usdValue, borrowToken, time),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
@@ -129,7 +133,7 @@ contract Sender is OwnerIsCreator {
             messageId,
             destinationChainSelector,
             amount,
-            depositToken,
+            borrowToken,
             address(s_linkToken),
             fees,
             time

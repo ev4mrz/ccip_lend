@@ -5,28 +5,24 @@ import {Script, console} from "forge-std/Script.sol";
 import {Receiver} from "../src/Protocol.sol";
 
 contract DeployReceiver is Script {
-    // Adresses Ethereum Sepolia
-    address constant SEPOLIA_CCIP_ROUTER = vm.envAddress("ROUTER_CCIP_ETH");
-    address constant SEPOLIA_LINK_TOKEN = vm.envAddress("0x779877A7B0D9E8603169DdbD7836e478b4624789");
-    
-    // Chain selectors
-    uint64 constant MANTLE_CHAIN_SELECTOR = vm.envUint("CHAIN_SELECTOR_MANTLE");
-    
     
     function run() external {
-        uint256 PrivateKey = vm.envUint("PRIVATE_KEY");
+        // Lire les variables d'environnement dans la fonction
+        uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        address sepoliaCcipRouter = vm.envAddress("ROUTER_CCIP_ETH");
+        uint64 mantleChainSelector = uint64(vm.envUint("CHAIN_SELECTOR_MANTLE"));
         
-        vm.startBroadcast(PrivateKey);
+        vm.startBroadcast(privateKey);
         
-        Receiver receiver = new Receiver(SEPOLIA_CCIP_ROUTER);
+        // Déployer le contrat Receiver
+        Receiver receiver = new Receiver(sepoliaCcipRouter);
         
         console.log("Receiver deployed to:", address(receiver));
         console.log("Owner:", receiver.owner());
         
-        // Configurer les allowlists pour Avalanche Fuji
-        receiver.allowlistSourceChain(FUJI_CHAIN_SELECTOR, true);
-        console.log("Allowlisted source chain Mantle:", MANTLE_CHAIN_SELECTOR);
-        
+        // Configurer les allowlists
+        receiver.allowlistSourceChain(mantleChainSelector, true);
+        console.log("Allowlisted source chain Mantle:", mantleChainSelector);
         
         vm.stopBroadcast();
         
