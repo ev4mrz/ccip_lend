@@ -9,22 +9,24 @@ contract DeployReceiver is Script {
     function run() external {
         // Lire les variables d'environnement dans la fonction
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
-        address sepoliaCcipRouter = vm.envAddress("ROUTER_CCIP_ETH");
-        uint64 mantleChainSelector = uint64(vm.envUint("CHAIN_SELECTOR_MANTLE"));
+        address mantleCcipRouter = vm.envAddress("ROUTER_CCIP_MANTLE");
+        uint64 ethChainSelector = uint64(vm.envUint("CHAIN_SELECTOR_ETH"));
         
         vm.startBroadcast(privateKey);
         
         // Déployer le contrat Receiver
-        Receiver receiver = new Receiver(sepoliaCcipRouter);
+        Receiver receiver = new Receiver(mantleCcipRouter);
         
         console.log("Receiver deployed to:", address(receiver));
         console.log("Owner:", receiver.owner());
         
         // Configurer les allowlists
-        receiver.allowlistSourceChain(mantleChainSelector, true);
-        console.log("Allowlisted source chain Mantle:", mantleChainSelector);
+        receiver.allowlistSourceChain(ethChainSelector, true);
+        console.log("Allowlisted source chain Mantle:", ethChainSelector);
         
         vm.stopBroadcast();
         
     }
 } 
+
+//0x7AC277932769018305b81e608E58c5F3730967E3

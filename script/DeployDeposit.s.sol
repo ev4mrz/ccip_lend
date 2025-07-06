@@ -9,21 +9,23 @@ contract DeploySender is Script {
     function run() external {
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address routerCcipMantle = vm.envAddress("ROUTER_CCIP_MANTLE");
-        address linkTokenMantle = vm.envAddress("LINK_TOKEN_MANTLE");
-        uint64 chainSelectorEth = uint64(vm.envUint("CHAIN_SELECTOR_ETH"));
+        address routerCcipETH = vm.envAddress("ROUTER_CCIP_ETH");
+        address linkTokenETH = vm.envAddress("LINK_TOKEN_ETH");
+        uint64 chainSelectorMantle = uint64(vm.envUint("CHAIN_SELECTOR_MANTLE"));
         
         vm.startBroadcast(deployerPrivateKey);
         
-        Sender sender = new Sender(routerCcipMantle, linkTokenMantle);
+        Sender sender = new Sender(routerCcipETH, linkTokenETH);
         
         console.log("Sender deployed to:", address(sender));
         console.log("Owner:", sender.owner());
         
-        sender.allowlistDestinationChain(chainSelectorEth, true);
-        console.log("Allowlisted destination chain ETH:", chainSelectorEth);
+        sender.allowlistDestinationChain(chainSelectorMantle, true);
+        console.log("Allowlisted destination chain ETH:", chainSelectorMantle);
         
         vm.stopBroadcast();
         
     }
 } 
+
+// 0x8c73e29BAF7c95cC7b5a5923b51be4405fCBedC8

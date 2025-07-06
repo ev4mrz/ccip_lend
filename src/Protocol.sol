@@ -7,6 +7,10 @@ import {AggregatorV3Interface} from "@chainlink/contracts/v0.8/shared/interfaces
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OwnerIsCreator} from "@chainlink/contracts/v0.8/shared/access/OwnerIsCreator.sol";
 
+interface IPriceFeed {
+    function getPrice() external view returns (uint256);
+}
+
 contract Receiver is CCIPReceiver, OwnerIsCreator {
 
     error InvalidPriceFeedData();
@@ -57,16 +61,17 @@ contract Receiver is CCIPReceiver, OwnerIsCreator {
     }
     
     function getTokenAmountFromUSD(address token, uint256 usdValue) public view returns (uint256) {
-        // hardcoded price feed for MNT
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x4c8962833Db7206fd45671e9DC806e4FcC0dCB78);
-        require(address(priceFeed) != address(0), "Price feed not set for this token");
+        
+        //AggregatorV3Interface priceFeed = AggregatorV3Interface(0x4c8962833Db7206fd45671e9DC806e4FcC0dCB78);
+        uint256 priceFeed = IPriceFeed(token).getPrice();
+        // require(address(priceFeed) != address(0), "Price feed not set for this token");
+// 
+        // (, int256 price, , , ) = priceFeed.latestRoundData();
+        // if (price <= 0) {
+        //     revert InvalidPriceFeedData();
+        // }
 
-        (, int256 price, , , ) = priceFeed.latestRoundData();
-        if (price <= 0) {
-            revert InvalidPriceFeedData();
-        }
-
-        uint256 tokenAmount = (usdValue * 1e18) / uint256(price);
+        uint256 tokenAmount = (usdValue * 1e18) / priceFeed;
         return tokenAmount;
     }
 
