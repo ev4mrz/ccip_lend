@@ -20,8 +20,13 @@ contract DeploySender is Script {
         console.log("Sender deployed to:", address(sender));
         console.log("Owner:", sender.owner());
         
+
         sender.allowlistDestinationChain(chainSelectorMantle, true);
-        console.log("Allowlisted destination chain ETH:", chainSelectorMantle);
+        console.log("Allowlisted destination chain (Mantle):", chainSelectorMantle);
+        
+
+        sender.allowlistSourceChain(chainSelectorMantle, true);
+        console.log("Allowlisted source chain (Mantle):", chainSelectorMantle);
         
         vm.stopBroadcast();
         
@@ -29,3 +34,6 @@ contract DeploySender is Script {
 } 
 
 // 0x8c73e29BAF7c95cC7b5a5923b51be4405fCBedC8
+
+
+//0xDDbBa6ea31AD2Ba03F6C50f6F8E7C3F1271B5A10

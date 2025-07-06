@@ -142,4 +142,87 @@ contract Sender is OwnerIsCreator {
         return messageId;
     }
 
+    /// @notice Handle received refund confirmation from destination chain
+    function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override 
+        onlyAllowlistedSource(any2EvmMessage.sourceChainSelector) {
+        
+        // Decode the refund message data
+        (
+            address user,
+            string memory message,
+            uint256 refundAmount,
+            uint256 timestamp
+        ) = abi.decode(any2EvmMessage.data, (address, string, uint256, uint256));
+        
+        // Store refund message details
+        lastReceivedRefund = RefundMessageDetails({
+            messageId: any2EvmMessage.messageId,
+            sourceChainSelector: any2EvmMessage.sourceChainSelector,
+            user: user,
+            message: message,
+            refundAmount: refundAmount,
+            timestamp: timestamp
+        });
+        
+        // Check if this is a refund confirmation
+        if (keccak256(abi.encodePacked(message)) == keccak256(abi.encodePacked("REFUND_CONFIRMED"))) {
+            // Return all deposits to the user
+            _returnUserDeposits(user);
+        }
+        
+        emit RefundMessageReceived(
+            any2EvmMessage.messageId,
+            any2EvmMessage.sourceChainSelector,
+            user,
+            message,
+            refundAmount,
+            block.timestamp
+        );
+    }
+
+    /// @notice Internal function to return all deposits to a user
+    function _returnUserDeposits(address user) internal {
+        // This is a simplified version - in practice you might want to iterate through known tokens
+        // For now, we'll emit an event and provide a manual function
+        emit DepositsReturned(user, address(0), 0, block.timestamp);
+    }
+
+    /// @notice Manual function to return specific token deposits to user (called after refund confirmation)
+    function returnUserDeposits(address user, address token) external onlyOwner {
+        uint256 depositAmount = userDeposits[user][token];
+        
+        if (depositAmount == 0) {
+            revert NoDepositsToReturn();
+        }
+        
+        // Check if contract has enough tokens
+        if (IERC20(token).balanceOf(address(this)) < depositAmount) {
+            revert TokenTransferFailed();
+        }
+        
+        // Clear the deposit record
+        userDeposits[user][token] = 0;
+        
+        // Transfer tokens back to user
+        if (!IERC20(token).transfer(user, depositAmount)) {
+            revert TokenTransferFailed();
+        }
+        
+        emit DepositsReturned(user, token, depositAmount, block.timestamp);
+    }
+
+    /// @notice Get user deposit amount for a specific token
+    function getUserDeposit(address user, address token) external view returns (uint256) {
+        return userDeposits[user][token];
+    }
+
+    /// @notice Get details of the last received refund message
+    function getLastReceivedRefund() external view returns (RefundMessageDetails memory) {
+        return lastReceivedRefund;
+    }
+
+    /// @notice Emergency function to withdraw contract balance (only owner)
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        IERC20(token).transfer(owner(), amount);
+    }
 }
