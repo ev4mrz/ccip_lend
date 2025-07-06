@@ -1,66 +1,124 @@
-## Foundry
+# CCIP Cross-Chain Lending Protocol
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A decentralized cross-chain lending protocol that enables users to deposit tokens on Ethereum and borrow on Mantle using Chainlink CCIP with automated repayment processing.
 
-Foundry consists of:
+## Features
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- 🌉 Cross-chain lending: Deposit on Ethereum, borrow on Mantle
+- 🔄 Automated returns via Chainlink Automation
+- 💰 70% LTV ratio
+- 📊 USD-based calculations
+- 🛡️ Multi-layer security
 
-## Documentation
+## Architecture
 
-https://book.getfoundry.sh/
+- **Sender Contract** (Ethereum Sepolia): Handles deposits and automated returns
+- **Receiver Contract** (Mantle Testnet): Handles borrowing and repayments
+
+## Smart Contracts
+
+```
+src/
+├── Deposit.sol     # Sender contract
+├── Protocol.sol    # Receiver contract
+└── TeslaToken.sol  # Test ERC20 token
+
+script/
+├── DeployDeposit.s.sol
+├── DeployProtocol.s.sol
+└── TeslaDeploy.s.sol
+```
+
+## Setup
+
+### Prerequisites
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- Testnet ETH and LINK tokens
+
+### Environment Variables
+```env
+PRIVATE_KEY=0x...
+ROUTER_CCIP_ETH=0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59
+ROUTER_CCIP_MANTLE=0x...
+LINK_TOKEN_ETH=0x779877A7B0D9E8603169DdbD7836e478b4624789
+LINK_TOKEN_MANTLE=0x...
+CHAIN_SELECTOR_ETH=16015286601757825753
+CHAIN_SELECTOR_MANTLE=5224473277236331520
+```
+
+### Installation
+```bash
+git clone <repository>
+cd ccip_lend
+forge install
+```
+
+## Deployment
+
+```bash
+# Deploy Sender (Ethereum Sepolia)
+forge script script/DeployDeposit.s.sol --rpc-url $ETH_RPC_URL --broadcast
+
+# Deploy Receiver (Mantle Testnet)
+forge script script/DeployProtocol.s.sol --rpc-url $MANTLE_RPC_URL --broadcast
+
+# Deploy Test Token
+forge script script/TeslaDeploy.s.sol --rpc-url $MANTLE_RPC_URL --broadcast
+```
 
 ## Usage
 
-### Build
-
-```shell
-$ forge build
+### 1. Deposit and Borrow
+```solidity
+// Approve and deposit
+IERC20(depositToken).approve(senderAddress, amount);
+sender.deposit(depositToken, amount, borrowToken, chainSelector, receiverAddress, duration);
 ```
 
-### Test
-
-```shell
-$ forge test
+### 2. Repay Loan
+```solidity
+// Approve and repay (amount calculated automatically with interest)
+IERC20(repayToken).approve(receiverAddress, repayAmount);
+receiver.refund(repayToken, chainSelector, senderAddress);
 ```
 
-### Format
+### 3. Automatic Return
+Chainlink Automation automatically returns deposited tokens after repayment confirmation.
 
-```shell
-$ forge fmt
+## Configuration
+
+1. Fund contracts with LINK tokens for CCIP fees
+2. Set up [Chainlink Automation](https://automation.chain.link/) for Sender contract
+3. Fund Receiver contract with lending tokens
+
+## Interest Model
+
+- **Rate**: 0.01% per day
+- **Formula**: `finalAmount = principal + (principal × days × 0.01%)`
+
+## Testing
+
+```bash
+forge test
 ```
 
-### Gas Snapshots
+## Networks
 
-```shell
-$ forge snapshot
-```
+| Network | Chain Selector | Router |
+|---------|----------------|--------|
+| Ethereum Sepolia | 16015286601757825753 | 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59 |
+| Mantle Testnet | 5224473277236331520 | [CCIP Directory](https://docs.chain.link/ccip/directory) |
 
-### Anvil
+## Resources
 
-```shell
-$ anvil
-```
+- [Chainlink CCIP Docs](https://docs.chain.link/ccip)
+- [Chainlink Automation](https://docs.chain.link/automation)
+- [Foundry Book](https://book.getfoundry.sh/)
 
-### Deploy
+## License
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+MIT License
 
-### Cast
+---
 
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+**⚠️ Educational project - use at your own risk**
